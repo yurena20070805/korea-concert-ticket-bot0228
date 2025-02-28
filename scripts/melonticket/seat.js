@@ -6,6 +6,7 @@ function theFrame() {
     if (window._theFrameInstance == null) {
       window._theFrameInstance = document.getElementById('oneStopFrame').contentWindow;
     }
+  
     return window._theFrameInstance;
 }
 
@@ -37,13 +38,46 @@ async function findSeat() {
     let frame = theFrame();
     let canvas = frame.document.getElementById("ez_canvas");
     let seat = canvas.getElementsByTagName("rect");
-    await sleep(100); // 加速点1：从750ms改为100ms
+    
+    await sleep(169);
     for (let i = 0; i < seat.length; i++) {
         let fillColor = seat[i].getAttribute("fill");
     
         if (fillColor !== "#DDDDDD" && fillColor !== "none") {
-            seat[i].dispatchEvent(new Event('click', { bubbles: true }));
-            return true; // 加速点2：移除自动点击下一步
+            console.log("Rect with different fill color found:", seat[i]);
+            var clickEvent = new Event('click', { bubbles: true });
+
+            seat[i].dispatchEvent(clickEvent);
+            frame.document.getElementById("nextTicketSelection").click();
+            
+            // 保留浏览器通知功能
+            if ("Notification" in window) {
+                if (Notification.permission === "granted") {
+                    let notification = new Notification("提示", {
+                        body: "发现合适的座位，点击切换窗口",
+                        icon: "icon.png"
+                    });
+                    
+                    notification.onclick = () => {
+                        window.focus();
+                    };
+                } else if (Notification.permission !== "denied") {
+                    Notification.requestPermission().then(permission => {
+                        if (permission === "granted") {
+                            let notification = new Notification("提示", {
+                                body: "发现合适的座位，点击切换窗口",
+                                icon: "icon.png"
+                            });
+
+                            notification.onclick = () => {
+                                window.focus();
+                            };
+                        }
+                    });
+                }
+            }
+
+            return true;
         }
     }
     return false;
@@ -52,28 +86,29 @@ async function findSeat() {
 async function reload() {
     let frame = theFrame();
     frame.document.getElementById("btnReloadSchedule").click();
-    await sleep(300); // 加速点3：从750ms改为300ms
+    await sleep(750);
 }
 
 async function searchSeat(data) {
-    let maxRetries = 50; // 加速点4：添加循环上限
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-        for (const sec of data.section) {
-            openEverySection();
-            clickOnArea(sec);
-            if (await findSeat()) {
-                alert("发现座位！请手动操作！");
-                return; // 加速点5：直接返回不递归
-            }
+    for (sec of data.section) {
+        openEverySection();
+        clickOnArea(sec);
+        if (await findSeat()) {
+            // 直接进行下一步操作
+            let frame = theFrame();
+            await sleep(500);
+            frame.document.getElementById("nextTicketSelection").click();
+            return;
         }
-        await reload(); // 加速点6：移除递归直接循环
     }
+    reload();
+    await searchSeat(data);
 }
 
 async function waitFirstLoad() {
     let concertId = getConcertId();
     let data = await get_stored_value(concertId);
-    await sleep(100); // 加速点7：从1000ms改为100ms
+    await sleep(1000);
     searchSeat(data);
 }
 
