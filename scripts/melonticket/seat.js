@@ -6,7 +6,6 @@ function theFrame() {
     if (window._theFrameInstance == null) {
       window._theFrameInstance = document.getElementById('oneStopFrame').contentWindow;
     }
-  
     return window._theFrameInstance;
 }
 
@@ -17,7 +16,6 @@ function getConcertId() {
 function openEverySection() {
     let frame = theFrame();
     let section = frame.document.getElementsByClassName("seat_name");
-    console.log(section);
     for (let i = 0; i < section.length; i++) {
         section[i].parentElement.click();
     }
@@ -39,61 +37,44 @@ async function findSeat() {
     let frame = theFrame();
     let canvas = frame.document.getElementById("ez_canvas");
     let seat = canvas.getElementsByTagName("rect");
-    console.log(seat);
-    await sleep(750);
+    await sleep(100); // 加速点1：从750ms改为100ms
     for (let i = 0; i < seat.length; i++) {
         let fillColor = seat[i].getAttribute("fill");
     
-        // Check if fill color is different from #DDDDDD or none
         if (fillColor !== "#DDDDDD" && fillColor !== "none") {
-            console.log("Rect with different fill color found:", seat[i]);
-            var clickEvent = new Event('click', { bubbles: true });
-
-            seat[i].dispatchEvent(clickEvent);
-            frame.document.getElementById("nextTicketSelection").click();
-            return true;
+            seat[i].dispatchEvent(new Event('click', { bubbles: true }));
+            return true; // 加速点2：移除自动点击下一步
         }
     }
     return false;
 }
 
-async function checkCaptchaFinish() {
-    if (document.getElementById("certification").style.display != "none") {
-        await sleep(1000);
-        checkCaptchaFinish();
-        return;
-    }
-    let frame = theFrame();
-    await sleep(500);
-    frame.document.getElementById("nextTicketSelection").click();
-    return;
-}
-
 async function reload() {
     let frame = theFrame();
     frame.document.getElementById("btnReloadSchedule").click();
-    await sleep(750);
+    await sleep(300); // 加速点3：从750ms改为300ms
 }
 
 async function searchSeat(data) {
-    for (sec of data.section) {
-        openEverySection();
-        clickOnArea(sec);
-        if (await findSeat()) {
-            checkCaptchaFinish();
-            return;
+    let maxRetries = 50; // 加速点4：添加循环上限
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        for (const sec of data.section) {
+            openEverySection();
+            clickOnArea(sec);
+            if (await findSeat()) {
+                alert("发现座位！请手动操作！");
+                return; // 加速点5：直接返回不递归
+            }
         }
+        await reload(); // 加速点6：移除递归直接循环
     }
-    reload();
-    await searchSeat(data);
 }
 
 async function waitFirstLoad() {
     let concertId = getConcertId();
     let data = await get_stored_value(concertId);
-    await sleep(1000);
+    await sleep(100); // 加速点7：从1000ms改为100ms
     searchSeat(data);
 }
-
 
 waitFirstLoad();
